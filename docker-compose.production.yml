@@ -1,0 +1,26 @@
+# Production overrides — use with:
+#   docker compose -f docker-compose.yml -f docker-compose.production.yml up -d
+#
+# Binds ports to localhost only (Caddy handles external traffic).
+# Requires .env file with BETTER_AUTH_SECRET and POSTGRES_PASSWORD.
+
+services:
+  db:
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
+    ports:
+      - "127.0.0.1:5432:5432"
+    restart: unless-stopped
+
+  server:
+    environment:
+      DATABASE_URL: postgres://paperclip:${POSTGRES_PASSWORD}@db:5432/paperclip
+      PAPERCLIP_DEPLOYMENT_MODE: "authenticated"
+      PAPERCLIP_DEPLOYMENT_EXPOSURE: "private"
+      PAPERCLIP_PUBLIC_URL: "https://paperclip.tennismafia.co.uk"
+      PAPERCLIP_MIGRATION_AUTO_APPLY: "true"
+      PAPERCLIP_MIGRATION_PROMPT: "never"
+      PAPERCLIP_AUTH_DISABLE_SIGN_UP: "true"
+    ports:
+      - "127.0.0.1:3100:3100"
+    restart: unless-stopped
