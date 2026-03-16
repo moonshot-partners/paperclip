@@ -129,12 +129,13 @@ function normalizeSessionKeyStrategy(value: unknown): SessionKeyStrategy {
 function resolveSessionKey(input: {
   strategy: SessionKeyStrategy;
   configuredSessionKey: string | null;
+  agentId: string;
   runId: string;
   issueId: string | null;
 }): string {
   const fallback = input.configuredSessionKey ?? "paperclip";
-  if (input.strategy === "run") return `paperclip:run:${input.runId}`;
-  if (input.strategy === "issue" && input.issueId) return `paperclip:issue:${input.issueId}`;
+  if (input.strategy === "run") return `agent:${input.agentId}:run:${input.runId}`;
+  if (input.strategy === "issue" && input.issueId) return `agent:${input.agentId}:issue:${input.issueId}`;
   return fallback;
 }
 
@@ -399,7 +400,7 @@ function buildWakeText(payload: WakePayload, paperclipEnv: Record<string, string
     "1) GET /api/agents/me",
     `2) Determine issueId: PAPERCLIP_TASK_ID if present, otherwise issue_id (${issueIdHint}).`,
     "3) If issueId exists:",
-    "   - POST /api/issues/{issueId}/checkout with {\"agentId\":\"$PAPERCLIP_AGENT_ID\",\"expectedStatuses\":[\"todo\",\"backlog\",\"blocked\"]}",
+    "   - POST /api/issues/{issueId}/checkout with {\"agentId\":\"$PAPERCLIP_AGENT_ID\",\"expectedStatuses\":[\"todo\",\"blocked\"]}",
     "   - GET /api/issues/{issueId}",
     "   - GET /api/issues/{issueId}/comments",
     "   - Execute the issue instructions exactly.",
@@ -614,7 +615,7 @@ class GatewayWsClient {
       this.resolveChallenge = resolve;
       this.rejectChallenge = reject;
     });
-    this.challengePromise.catch(() => {});
+    this.challengePromise.catch(() => {}); // prevent crash on WS close 1006
   }
 
   async connect(
@@ -1069,6 +1070,7 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
   const sessionKey = resolveSessionKey({
     strategy: sessionKeyStrategy,
     configuredSessionKey,
+    agentId: wakePayload.agentId,
     runId: ctx.runId,
     issueId: wakePayload.issueId,
   });
