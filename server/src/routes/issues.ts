@@ -3,6 +3,7 @@ import multer from "multer";
 import type { Db } from "@paperclipai/db";
 import {
   addIssueCommentSchema,
+  updateIssueCommentSchema,
   createIssueAttachmentMetadataSchema,
   createIssueLabelSchema,
   checkoutIssueSchema,
@@ -907,6 +908,97 @@ export function issueRoutes(db: Db, storage: StorageService) {
       return;
     }
     res.json(comment);
+  });
+
+  router.patch("/issues/:id/comments/:commentId", validate(updateIssueCommentSchema), async (req, res) => {
+    const id = req.params.id as string;
+    const commentId = req.params.commentId as string;
+    const issue = await svc.getById(id);
+    if (!issue) {
+      res.status(404).json({ error: "Issue not found" });
+      return;
+    }
+    assertCompanyAccess(req, issue.companyId);
+
+    const comment = await svc.getComment(commentId);
+    if (!comment || comment.issueId !== id) {
+      res.status(404).json({ error: "Comment not found" });
+      return;
+    }
+
+    // Authorization: only the comment author can edit
+    const actor = getActorInfo(req);
+    const isAuthor =
+      (actor.actorType === "agent" && comment.authorAgentId === actor.actorId) ||
+      (actor.actorType === "user" && comment.authorUserId === actor.actorId);
+    if (!isAuthor) {
+      res.status(403).json({ error: "Only the comment author can edit a comment" });
+      return;
+    }
+
+    // Guard: if the issue is assigned to a different agent, block edits that
+    // could change @-mentions (effectively reassigning work mid-flight).
+    if (issue.assigneeAgentId && issue.assigneeAgentId !== (actor.agentId ?? null)) {
+      res.status(403).json({ error: "Cannot edit comments on issues assigned to another agent" });
+      return;
+    }
+
+    const oldBody = comment.body;
+    const updated = await svc.updateComment(commentId, req.body.body);
+
+    await logActivity(db, {
+      companyId: issue.companyId,
+      actorType: actor.actorType,
+      actorId: actor.actorId,
+      agentId: actor.agentId,
+      runId: actor.runId,
+      action: "issue.comment_updated",
+      entityType: "issue",
+      entityId: issue.id,
+      details: {
+        commentId: updated.id,
+        bodySnippet: updated.body.slice(0, 120),
+        identifier: issue.identifier,
+        issueTitle: issue.title,
+      },
+    });
+
+    // Detect new @-mentions added by the edit and wake those agents
+    void (async () => {
+      try {
+        const oldMentions = await svc.findMentionedAgents(issue.companyId, oldBody);
+        const newMentions = await svc.findMentionedAgents(issue.companyId, req.body.body);
+        const addedMentions = newMentions.filter((m) => !oldMentions.includes(m));
+
+        for (const mentionedId of addedMentions) {
+          if (actor.actorType === "agent" && actor.actorId === mentionedId) continue;
+          heartbeat
+            .wakeup(mentionedId, {
+              source: "automation",
+              triggerDetail: "system",
+              reason: "issue_comment_mentioned",
+              payload: { issueId: id, commentId: updated.id },
+              requestedByActorType: actor.actorType,
+              requestedByActorId: actor.actorId,
+              contextSnapshot: {
+                issueId: id,
+                taskId: id,
+                commentId: updated.id,
+                wakeCommentId: updated.id,
+                wakeReason: "issue_comment_mentioned",
+                source: "comment.mention.edit",
+              },
+            })
+            .catch((err) =>
+              logger.warn({ err, issueId: id, agentId: mentionedId }, "failed to wake agent on edited comment mention"),
+            );
+        }
+      } catch (err) {
+        logger.warn({ err, issueId: id }, "failed to resolve @-mentions on comment edit");
+      }
+    })();
+
+    res.json(updated);
   });
 
   router.post("/issues/:id/comments", validate(addIssueCommentSchema), async (req, res) => {

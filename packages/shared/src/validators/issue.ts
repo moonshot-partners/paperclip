@@ -76,6 +76,12 @@ export const addIssueCommentSchema = z.object({
 
 export type AddIssueComment = z.infer<typeof addIssueCommentSchema>;
 
+export const updateIssueCommentSchema = z.object({
+  body: z.string().min(1),
+});
+
+export type UpdateIssueComment = z.infer<typeof updateIssueCommentSchema>;
+
 export const linkIssueApprovalSchema = z.object({
   approvalId: z.string().uuid(),
 });

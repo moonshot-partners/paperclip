@@ -64,6 +64,7 @@ export {
   issueExecutionWorkspaceSettingsSchema,
   checkoutIssueSchema,
   addIssueCommentSchema,
+  updateIssueCommentSchema,
   linkIssueApprovalSchema,
   createIssueAttachmentMetadataSchema,
   type CreateIssue,
@@ -72,6 +73,7 @@ export {
   type IssueExecutionWorkspaceSettings,
   type CheckoutIssue,
   type AddIssueComment,
+  type UpdateIssueComment,
   type LinkIssueApproval,
   type CreateIssueAttachmentMetadata,
 } from "./issue.js";

@@ -2,7 +2,7 @@ import { memo, useEffect, useMemo, useRef, useState, type ChangeEvent } from "re
 import { Link, useLocation } from "react-router-dom";
 import type { IssueComment, Agent } from "@paperclipai/shared";
 import { Button } from "@/components/ui/button";
-import { Check, Copy, Paperclip } from "lucide-react";
+import { Check, Copy, Paperclip, Pencil, X } from "lucide-react";
 import { Identity } from "./Identity";
 import { InlineEntitySelector, type InlineEntityOption } from "./InlineEntitySelector";
 import { MarkdownBody } from "./MarkdownBody";
@@ -33,6 +33,7 @@ interface CommentThreadProps {
   comments: CommentWithRunMeta[];
   linkedRuns?: LinkedRunItem[];
   onAdd: (body: string, reopen?: boolean, reassignment?: CommentReassignment) => Promise<void>;
+  onEdit?: (commentId: string, body: string) => Promise<void>;
   issueStatus?: string;
   agentMap?: Map<string, Agent>;
   imageUploadHandler?: (file: File) => Promise<string>;
@@ -119,11 +120,16 @@ const TimelineList = memo(function TimelineList({
   timeline,
   agentMap,
   highlightCommentId,
+  onEdit,
 }: {
   timeline: TimelineItem[];
   agentMap?: Map<string, Agent>;
   highlightCommentId?: string | null;
+  onEdit?: (commentId: string, body: string) => Promise<void>;
 }) {
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editBody, setEditBody] = useState("");
+  const [saving, setSaving] = useState(false);
   if (timeline.length === 0) {
     return <p className="text-sm text-muted-foreground">No comments or runs yet.</p>;
   }
@@ -162,6 +168,8 @@ const TimelineList = memo(function TimelineList({
 
         const comment = item.comment;
         const isHighlighted = highlightCommentId === comment.id;
+        const isUserComment = !comment.authorAgentId;
+        const isEditing = editingId === comment.id;
         return (
           <div
             key={comment.id}
@@ -186,10 +194,61 @@ const TimelineList = memo(function TimelineList({
                 >
                   {formatDateTime(comment.createdAt)}
                 </a>
+                {isUserComment && onEdit && !isEditing && (
+                  <button
+                    type="button"
+                    className="text-muted-foreground hover:text-foreground transition-colors"
+                    title="Edit comment"
+                    onClick={() => {
+                      setEditingId(comment.id);
+                      setEditBody(comment.body);
+                    }}
+                  >
+                    <Pencil className="h-3 w-3" />
+                  </button>
+                )}
                 <CopyMarkdownButton text={comment.body} />
               </span>
             </div>
-            <MarkdownBody className="text-sm">{comment.body}</MarkdownBody>
+            {isEditing ? (
+              <div className="space-y-2">
+                <textarea
+                  className="w-full min-h-[60px] rounded-sm border border-border bg-background px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-ring resize-y"
+                  value={editBody}
+                  onChange={(e) => setEditBody(e.target.value)}
+                  disabled={saving}
+                />
+                <div className="flex items-center gap-2 justify-end">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    disabled={saving}
+                    onClick={() => setEditingId(null)}
+                  >
+                    <X className="h-3 w-3 mr-1" />
+                    Cancel
+                  </Button>
+                  <Button
+                    size="sm"
+                    disabled={saving || !editBody.trim()}
+                    onClick={async () => {
+                      if (!onEdit || !editBody.trim()) return;
+                      setSaving(true);
+                      try {
+                        await onEdit(comment.id, editBody.trim());
+                        setEditingId(null);
+                      } finally {
+                        setSaving(false);
+                      }
+                    }}
+                  >
+                    {saving ? "Saving..." : "Save"}
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <MarkdownBody className="text-sm">{comment.body}</MarkdownBody>
+            )}
             {comment.runId && (
               <div className="mt-2 pt-2 border-t border-border/60">
                 {comment.runAgentId ? (
@@ -217,6 +276,7 @@ export function CommentThread({
   comments,
   linkedRuns = [],
   onAdd,
+  onEdit,
   issueStatus,
   agentMap,
   imageUploadHandler,
@@ -351,7 +411,7 @@ export function CommentThread({
     <div className="space-y-4">
       <h3 className="text-sm font-semibold">Comments &amp; Runs ({timeline.length})</h3>
 
-      <TimelineList timeline={timeline} agentMap={agentMap} highlightCommentId={highlightCommentId} />
+      <TimelineList timeline={timeline} agentMap={agentMap} highlightCommentId={highlightCommentId} onEdit={onEdit} />
 
       {liveRunSlot}
 

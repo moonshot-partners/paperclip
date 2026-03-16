@@ -1152,6 +1152,24 @@ export function issueService(db: Db) {
           return comment ? redactIssueComment(comment) : null;
         }),
 
+    updateComment: async (commentId: string, body: string) => {
+      const redactedBody = redactCurrentUserText(body);
+      const [updated] = await db
+        .update(issueComments)
+        .set({ body: redactedBody, updatedAt: new Date() })
+        .where(eq(issueComments.id, commentId))
+        .returning();
+      if (!updated) throw notFound("Comment not found");
+
+      // Update issue's updatedAt so comment activity is reflected in recency sorting
+      await db
+        .update(issues)
+        .set({ updatedAt: new Date() })
+        .where(eq(issues.id, updated.issueId));
+
+      return redactIssueComment(updated);
+    },
+
     addComment: async (issueId: string, body: string, actor: { agentId?: string; userId?: string }) => {
       const issue = await db
         .select({ companyId: issues.companyId })

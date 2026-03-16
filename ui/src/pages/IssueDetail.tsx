@@ -421,6 +421,14 @@ export function IssueDetail() {
     },
   });
 
+  const editComment = useMutation({
+    mutationFn: ({ commentId, body }: { commentId: string; body: string }) =>
+      issuesApi.updateComment(issueId!, commentId, body),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.issues.comments(issueId!) });
+    },
+  });
+
   const addCommentAndReassign = useMutation({
     mutationFn: ({
       body,
@@ -779,6 +787,9 @@ export function IssueDetail() {
             reassignOptions={commentReassignOptions}
             currentAssigneeValue={currentAssigneeValue}
             mentions={mentionOptions}
+            onEdit={async (commentId, body) => {
+              await editComment.mutateAsync({ commentId, body });
+            }}
             onAdd={async (body, reopen, reassignment) => {
               if (reassignment) {
                 await addCommentAndReassign.mutateAsync({ body, reopen, reassignment });
