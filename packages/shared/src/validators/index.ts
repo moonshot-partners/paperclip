@@ -128,6 +128,12 @@ export {
 } from "./project.js";
 
 export {
+  documentKeySchema,
+  upsertAgentDocumentSchema,
+  type UpsertAgentDocument,
+} from "./agent-document.js";
+
+export {
   createIssueSchema,
   createIssueLabelSchema,
   updateIssueSchema,

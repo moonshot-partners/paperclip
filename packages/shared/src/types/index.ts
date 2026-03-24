@@ -87,6 +87,11 @@ export type {
   WorkspaceOperationStatus,
 } from "./workspace-operation.js";
 export type {
+  AgentDocumentSummary,
+  AgentDocument,
+  AgentDocumentRevision,
+} from "./agent-document.js";
+export type {
   IssueWorkProduct,
   IssueWorkProductType,
   IssueWorkProductProvider,
