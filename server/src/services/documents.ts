@@ -1,6 +1,6 @@
 import { and, asc, desc, eq } from "drizzle-orm";
 import type { Db } from "@paperclipai/db";
-import { documentRevisions, documents, issueDocuments, issues } from "@paperclipai/db";
+import { agentDocuments, agents, documentRevisions, documents, issueDocuments, issues } from "@paperclipai/db";
 import { issueDocumentKeySchema } from "@paperclipai/shared";
 import { conflict, notFound, unprocessable } from "../errors.js";
 
@@ -389,6 +389,342 @@ export function documentService(db: Db) {
         }
         throw error;
       }
+    },
+
+    // ── Agent Documents ──────────────────────────────────────────────
+
+    listAgentDocuments: async (agentId: string) => {
+      const rows = await db
+        .select({
+          id: documents.id,
+          companyId: documents.companyId,
+          agentId: agentDocuments.agentId,
+          key: agentDocuments.key,
+          title: documents.title,
+          format: documents.format,
+          latestBody: documents.latestBody,
+          latestRevisionId: documents.latestRevisionId,
+          latestRevisionNumber: documents.latestRevisionNumber,
+          createdByAgentId: documents.createdByAgentId,
+          createdByUserId: documents.createdByUserId,
+          updatedByAgentId: documents.updatedByAgentId,
+          updatedByUserId: documents.updatedByUserId,
+          createdAt: documents.createdAt,
+          updatedAt: documents.updatedAt,
+        })
+        .from(agentDocuments)
+        .innerJoin(documents, eq(agentDocuments.documentId, documents.id))
+        .where(eq(agentDocuments.agentId, agentId))
+        .orderBy(asc(agentDocuments.key), desc(documents.updatedAt));
+      return rows.map((row) => ({
+        id: row.id,
+        companyId: row.companyId,
+        agentId: row.agentId,
+        key: row.key,
+        title: row.title,
+        format: row.format,
+        body: row.latestBody,
+        latestRevisionId: row.latestRevisionId ?? null,
+        latestRevisionNumber: row.latestRevisionNumber,
+        createdByAgentId: row.createdByAgentId,
+        createdByUserId: row.createdByUserId,
+        updatedByAgentId: row.updatedByAgentId,
+        updatedByUserId: row.updatedByUserId,
+        createdAt: row.createdAt,
+        updatedAt: row.updatedAt,
+      }));
+    },
+
+    getAgentDocumentByKey: async (agentId: string, rawKey: string) => {
+      const key = normalizeDocumentKey(rawKey);
+      const row = await db
+        .select({
+          id: documents.id,
+          companyId: documents.companyId,
+          agentId: agentDocuments.agentId,
+          key: agentDocuments.key,
+          title: documents.title,
+          format: documents.format,
+          latestBody: documents.latestBody,
+          latestRevisionId: documents.latestRevisionId,
+          latestRevisionNumber: documents.latestRevisionNumber,
+          createdByAgentId: documents.createdByAgentId,
+          createdByUserId: documents.createdByUserId,
+          updatedByAgentId: documents.updatedByAgentId,
+          updatedByUserId: documents.updatedByUserId,
+          createdAt: documents.createdAt,
+          updatedAt: documents.updatedAt,
+        })
+        .from(agentDocuments)
+        .innerJoin(documents, eq(agentDocuments.documentId, documents.id))
+        .where(and(eq(agentDocuments.agentId, agentId), eq(agentDocuments.key, key)))
+        .then((rows) => rows[0] ?? null);
+      if (!row) return null;
+      return {
+        id: row.id,
+        companyId: row.companyId,
+        agentId: row.agentId,
+        key: row.key,
+        title: row.title,
+        format: row.format,
+        body: row.latestBody,
+        latestRevisionId: row.latestRevisionId ?? null,
+        latestRevisionNumber: row.latestRevisionNumber,
+        createdByAgentId: row.createdByAgentId,
+        createdByUserId: row.createdByUserId,
+        updatedByAgentId: row.updatedByAgentId,
+        updatedByUserId: row.updatedByUserId,
+        createdAt: row.createdAt,
+        updatedAt: row.updatedAt,
+      };
+    },
+
+    listAgentDocumentRevisions: async (agentId: string, rawKey: string) => {
+      const key = normalizeDocumentKey(rawKey);
+      return db
+        .select({
+          id: documentRevisions.id,
+          companyId: documentRevisions.companyId,
+          documentId: documentRevisions.documentId,
+          agentId: agentDocuments.agentId,
+          key: agentDocuments.key,
+          revisionNumber: documentRevisions.revisionNumber,
+          body: documentRevisions.body,
+          changeSummary: documentRevisions.changeSummary,
+          createdByAgentId: documentRevisions.createdByAgentId,
+          createdByUserId: documentRevisions.createdByUserId,
+          createdAt: documentRevisions.createdAt,
+        })
+        .from(agentDocuments)
+        .innerJoin(documents, eq(agentDocuments.documentId, documents.id))
+        .innerJoin(documentRevisions, eq(documentRevisions.documentId, documents.id))
+        .where(and(eq(agentDocuments.agentId, agentId), eq(agentDocuments.key, key)))
+        .orderBy(desc(documentRevisions.revisionNumber));
+    },
+
+    upsertAgentDocument: async (input: {
+      agentId: string;
+      key: string;
+      title?: string | null;
+      format: string;
+      body: string;
+      changeSummary?: string | null;
+      baseRevisionId?: string | null;
+      createdByAgentId?: string | null;
+      createdByUserId?: string | null;
+    }) => {
+      const key = normalizeDocumentKey(input.key);
+      const agent = await db
+        .select({ id: agents.id, companyId: agents.companyId })
+        .from(agents)
+        .where(eq(agents.id, input.agentId))
+        .then((rows) => rows[0] ?? null);
+      if (!agent) throw notFound("Agent not found");
+
+      try {
+        return await db.transaction(async (tx) => {
+          const now = new Date();
+          const existing = await tx
+            .select({
+              id: documents.id,
+              companyId: documents.companyId,
+              agentId: agentDocuments.agentId,
+              key: agentDocuments.key,
+              title: documents.title,
+              format: documents.format,
+              latestBody: documents.latestBody,
+              latestRevisionId: documents.latestRevisionId,
+              latestRevisionNumber: documents.latestRevisionNumber,
+              createdByAgentId: documents.createdByAgentId,
+              createdByUserId: documents.createdByUserId,
+              updatedByAgentId: documents.updatedByAgentId,
+              updatedByUserId: documents.updatedByUserId,
+              createdAt: documents.createdAt,
+              updatedAt: documents.updatedAt,
+            })
+            .from(agentDocuments)
+            .innerJoin(documents, eq(agentDocuments.documentId, documents.id))
+            .where(and(eq(agentDocuments.agentId, agent.id), eq(agentDocuments.key, key)))
+            .then((rows) => rows[0] ?? null);
+
+          if (existing) {
+            if (!input.baseRevisionId) {
+              throw conflict("Document update requires baseRevisionId", {
+                currentRevisionId: existing.latestRevisionId,
+              });
+            }
+            if (input.baseRevisionId !== existing.latestRevisionId) {
+              throw conflict("Document was updated by someone else", {
+                currentRevisionId: existing.latestRevisionId,
+              });
+            }
+
+            const nextRevisionNumber = existing.latestRevisionNumber + 1;
+            const [revision] = await tx
+              .insert(documentRevisions)
+              .values({
+                companyId: agent.companyId,
+                documentId: existing.id,
+                revisionNumber: nextRevisionNumber,
+                body: input.body,
+                changeSummary: input.changeSummary ?? null,
+                createdByAgentId: input.createdByAgentId ?? null,
+                createdByUserId: input.createdByUserId ?? null,
+                createdAt: now,
+              })
+              .returning();
+
+            await tx
+              .update(documents)
+              .set({
+                title: input.title ?? null,
+                format: input.format,
+                latestBody: input.body,
+                latestRevisionId: revision.id,
+                latestRevisionNumber: nextRevisionNumber,
+                updatedByAgentId: input.createdByAgentId ?? null,
+                updatedByUserId: input.createdByUserId ?? null,
+                updatedAt: now,
+              })
+              .where(eq(documents.id, existing.id));
+
+            await tx
+              .update(agentDocuments)
+              .set({ updatedAt: now })
+              .where(eq(agentDocuments.documentId, existing.id));
+
+            return {
+              created: false as const,
+              document: {
+                ...existing,
+                title: input.title ?? null,
+                format: input.format,
+                body: input.body,
+                latestRevisionId: revision.id,
+                latestRevisionNumber: nextRevisionNumber,
+                updatedByAgentId: input.createdByAgentId ?? null,
+                updatedByUserId: input.createdByUserId ?? null,
+                updatedAt: now,
+              },
+            };
+          }
+
+          if (input.baseRevisionId) {
+            throw conflict("Document does not exist yet", { key });
+          }
+
+          const [document] = await tx
+            .insert(documents)
+            .values({
+              companyId: agent.companyId,
+              title: input.title ?? null,
+              format: input.format,
+              latestBody: input.body,
+              latestRevisionId: null,
+              latestRevisionNumber: 1,
+              createdByAgentId: input.createdByAgentId ?? null,
+              createdByUserId: input.createdByUserId ?? null,
+              updatedByAgentId: input.createdByAgentId ?? null,
+              updatedByUserId: input.createdByUserId ?? null,
+              createdAt: now,
+              updatedAt: now,
+            })
+            .returning();
+
+          const [revision] = await tx
+            .insert(documentRevisions)
+            .values({
+              companyId: agent.companyId,
+              documentId: document.id,
+              revisionNumber: 1,
+              body: input.body,
+              changeSummary: input.changeSummary ?? null,
+              createdByAgentId: input.createdByAgentId ?? null,
+              createdByUserId: input.createdByUserId ?? null,
+              createdAt: now,
+            })
+            .returning();
+
+          await tx
+            .update(documents)
+            .set({ latestRevisionId: revision.id })
+            .where(eq(documents.id, document.id));
+
+          await tx.insert(agentDocuments).values({
+            companyId: agent.companyId,
+            agentId: agent.id,
+            documentId: document.id,
+            key,
+            createdAt: now,
+            updatedAt: now,
+          });
+
+          return {
+            created: true as const,
+            document: {
+              id: document.id,
+              companyId: agent.companyId,
+              agentId: agent.id,
+              key,
+              title: document.title,
+              format: document.format,
+              body: document.latestBody,
+              latestRevisionId: revision.id,
+              latestRevisionNumber: 1,
+              createdByAgentId: document.createdByAgentId,
+              createdByUserId: document.createdByUserId,
+              updatedByAgentId: document.updatedByAgentId,
+              updatedByUserId: document.updatedByUserId,
+              createdAt: document.createdAt,
+              updatedAt: document.updatedAt,
+            },
+          };
+        });
+      } catch (error) {
+        if (isUniqueViolation(error)) {
+          throw conflict("Document key already exists on this agent", { key });
+        }
+        throw error;
+      }
+    },
+
+    deleteAgentDocument: async (agentId: string, rawKey: string) => {
+      const key = normalizeDocumentKey(rawKey);
+      return db.transaction(async (tx) => {
+        const existing = await tx
+          .select({
+            id: documents.id,
+            companyId: documents.companyId,
+            agentId: agentDocuments.agentId,
+            key: agentDocuments.key,
+            title: documents.title,
+            format: documents.format,
+            latestBody: documents.latestBody,
+            latestRevisionId: documents.latestRevisionId,
+            latestRevisionNumber: documents.latestRevisionNumber,
+            createdByAgentId: documents.createdByAgentId,
+            createdByUserId: documents.createdByUserId,
+            updatedByAgentId: documents.updatedByAgentId,
+            updatedByUserId: documents.updatedByUserId,
+            createdAt: documents.createdAt,
+            updatedAt: documents.updatedAt,
+          })
+          .from(agentDocuments)
+          .innerJoin(documents, eq(agentDocuments.documentId, documents.id))
+          .where(and(eq(agentDocuments.agentId, agentId), eq(agentDocuments.key, key)))
+          .then((rows) => rows[0] ?? null);
+
+        if (!existing) return null;
+
+        await tx.delete(agentDocuments).where(eq(agentDocuments.documentId, existing.id));
+        await tx.delete(documents).where(eq(documents.id, existing.id));
+
+        return {
+          ...existing,
+          body: existing.latestBody,
+          latestRevisionId: existing.latestRevisionId ?? null,
+        };
+      });
     },
 
     deleteIssueDocument: async (issueId: string, rawKey: string) => {
