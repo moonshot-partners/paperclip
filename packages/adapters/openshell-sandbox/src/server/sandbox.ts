@@ -1,28 +1,23 @@
-import type { OpenShellClient } from "openshell-node";
+import type { OpenShellClient, SandboxModel } from "openshell-node";
 import { parseObject } from "@paperclipai/adapter-utils/server-utils";
 
-interface SandboxModel {
-  id: string;
-  name: string;
-  phase: number;
-}
-
 /**
- * Get an existing sandbox by name or create a new one.
- * Used for persistent sandboxes that survive across heartbeats.
+ * Get an existing sandbox by name (persistent mode) or create a new one.
+ * In ephemeral mode, skips the lookup and creates directly.
  */
 export async function getOrCreateSandbox(
   client: OpenShellClient,
   name: string,
   config: Record<string, unknown>,
   providers: string[],
+  persistent: boolean,
 ): Promise<SandboxModel> {
-  // Try to find an existing sandbox with this name
-  try {
-    const existing = await client.getSandbox(name);
-    return existing as SandboxModel;
-  } catch {
-    // Not found — create a new one
+  if (persistent) {
+    try {
+      return await client.getSandbox(name);
+    } catch {
+      // Not found — fall through to create
+    }
   }
 
   const sandboxImage = typeof config.sandboxImage === "string" ? config.sandboxImage : undefined;
@@ -39,18 +34,16 @@ export async function getOrCreateSandbox(
     gpu: false,
   };
 
-  // Apply security policy if configured
   if (Object.keys(policyConfig).length > 0) {
     spec.policy = buildSandboxPolicy(policyConfig);
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- spec shape matches proto but types are strict
-  const sandbox = await client.createSandbox({ name, spec } as any);
-  return sandbox as SandboxModel;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- spec built dynamically from config
+  return await client.createSandbox({ name, spec } as any);
 }
 
 /**
- * Delete a sandbox, ignoring errors (e.g. already deleted).
+ * Delete a sandbox, ignoring errors (e.g. already deleted or never created).
  */
 export async function deleteSandboxSafe(client: OpenShellClient, name: string): Promise<void> {
   try {
@@ -60,9 +53,6 @@ export async function deleteSandboxSafe(client: OpenShellClient, name: string): 
   }
 }
 
-/**
- * Build an OpenShell SandboxPolicy from adapter config.
- */
 function buildSandboxPolicy(policyConfig: Record<string, unknown>): Record<string, unknown> {
   const policy: Record<string, unknown> = { version: 1 };
 

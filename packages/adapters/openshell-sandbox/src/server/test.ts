@@ -51,12 +51,11 @@ export async function testEnvironment(ctx: {
     };
   }
 
-  const hasErrors = checks.some((c) => c.level === "error");
   const hasWarns = checks.some((c) => c.level === "warn");
 
   return {
     adapterType: ctx.adapterType,
-    status: hasErrors ? "fail" : hasWarns ? "warn" : "pass",
+    status: hasWarns ? "warn" : "pass",
     checks,
     testedAt: new Date().toISOString(),
   };

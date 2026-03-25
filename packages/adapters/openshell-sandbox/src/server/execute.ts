@@ -3,6 +3,7 @@ import type {
   AdapterExecutionResult,
 } from "@paperclipai/adapter-utils";
 import { asString, asNumber, asBoolean, parseObject } from "@paperclipai/adapter-utils/server-utils";
+import { parseClaudeStreamJson } from "@paperclipai/adapter-claude-local/server";
 import { OpenShellClient, streamExecLines } from "openshell-node";
 import { getOrCreateSandbox, deleteSandboxSafe } from "./sandbox.js";
 
@@ -23,46 +24,43 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
 
   const client = new OpenShellClient({ gateway: gatewayUrl, cluster: gatewayCluster, insecure });
 
-  // Session key for sandbox naming (reuse across heartbeats if persistent)
   const sessionKey = ctx.runtime.taskKey ?? ctx.runId;
-  const sandboxName = `paperclip-${ctx.agent.id.slice(0, 8)}-${sessionKey.slice(0, 12)}`;
+  const sandboxName = `paperclip-${ctx.agent.id}-${sessionKey}`;
 
+  let resolvedSandboxName = sandboxName;
   let exitCode: number | null = null;
+  let result: AdapterExecutionResult;
   const stdoutLines: string[] = [];
 
   try {
-    // 1. Create or reuse sandbox
-    const sandbox = await getOrCreateSandbox(client, sandboxName, config, providers);
+    const sandbox = await getOrCreateSandbox(client, sandboxName, config, providers, persistSandbox);
+    resolvedSandboxName = sandbox.name;
     await client.waitReady(sandbox.name, sandboxTimeoutSec * 1000);
 
-    // 2. Build Claude CLI args
+    // Build Claude CLI args
     const args = ["--print", "-", "--output-format", "stream-json", "--verbose"];
     if (model) args.push("--model", model);
     if (maxTurns > 0) args.push("--max-turns", String(maxTurns));
     if (effort) args.push("--effort", effort);
     if (skipPerms) args.push("--dangerously-skip-permissions");
 
-    // Resume session if we have one
     const sessionId = asString(ctx.runtime.sessionParams?.sessionId, "");
     if (sessionId) args.push("--resume", sessionId);
 
-    // 3. Build environment for the sandbox exec
+    // Build environment
     const execEnv: Record<string, string> = {};
     for (const [k, v] of Object.entries(envOverrides)) {
       if (typeof v === "string") execEnv[k] = v;
     }
-
-    // Inject Paperclip context env vars
     execEnv.PAPERCLIP_RUN_ID = ctx.runId;
     execEnv.PAPERCLIP_AGENT_ID = ctx.agent.id;
     execEnv.PAPERCLIP_COMPANY_ID = ctx.agent.companyId;
     if (ctx.runtime.taskKey) execEnv.PAPERCLIP_TASK_KEY = ctx.runtime.taskKey;
     if (ctx.authToken) execEnv.PAPERCLIP_AUTH_TOKEN = ctx.authToken;
 
-    // Build the prompt from context
     const prompt = asString(ctx.context.prompt, asString(ctx.context.message, ""));
 
-    // 4. Execute Claude Code inside sandbox (streaming)
+    // Execute Claude Code inside sandbox (streaming)
     const grpcStream = client.execSandbox({
       sandboxId: sandbox.id,
       command: ["claude", ...args],
@@ -82,19 +80,10 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
       }
     }
 
-    // 5. Parse Claude stream-json output
-    // Import parse from claude-local adapter (same format)
-    const { parseClaudeStreamJson } = await import("@paperclipai/adapter-claude-local/server");
+    // Parse Claude stream-json output
     const parsed = parseClaudeStreamJson(stdoutLines.join("\n"));
 
-    // 6. Cleanup if ephemeral
-    if (!persistSandbox) {
-      await deleteSandboxSafe(client, sandbox.name);
-    }
-
-    client.close();
-
-    return {
+    result = {
       exitCode: exitCode ?? (parsed.resultJson ? 0 : 1),
       signal: null,
       timedOut: false,
@@ -110,18 +99,19 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
       billingType: "api",
     };
   } catch (err) {
-    // Ensure cleanup on error
-    if (!persistSandbox) {
-      await deleteSandboxSafe(client, sandboxName);
-    }
-    client.close();
-
     const message = err instanceof Error ? err.message : String(err);
-    return {
+    result = {
       exitCode: 1,
       signal: null,
       timedOut: message.includes("timed out") || message.includes("timeout"),
       errorMessage: message,
     };
+  } finally {
+    if (!persistSandbox) {
+      await deleteSandboxSafe(client, resolvedSandboxName);
+    }
+    client.close();
   }
+
+  return result;
 }
