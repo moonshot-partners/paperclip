@@ -38,6 +38,9 @@ Timeout fields:
 
 Environment fields:
 - env (object, optional): extra environment variables injected into the sandbox
+  - env.CLAUDE_CODE_OAUTH_TOKEN (string): Claude OAuth token (for team subscriptions)
+  - env.ANTHROPIC_API_KEY (string): Anthropic API key (for direct API access)
+  If neither is set in env, the adapter falls back to the server's environment variables.
 
 Policy fields:
 - policy (object, optional): OpenShell security policy applied at sandbox creation

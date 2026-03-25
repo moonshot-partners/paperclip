@@ -52,6 +52,19 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
     for (const [k, v] of Object.entries(envOverrides)) {
       if (typeof v === "string") execEnv[k] = v;
     }
+
+    // Claude credentials — support both OAuth token and API key.
+    // OAuth token (CLAUDE_CODE_OAUTH_TOKEN) is preferred for team subscriptions.
+    // API key (ANTHROPIC_API_KEY) is the standard for direct API access.
+    // Both can be set in adapterConfig.env or inherited from the server environment.
+    if (!execEnv.CLAUDE_CODE_OAUTH_TOKEN && !execEnv.ANTHROPIC_API_KEY) {
+      const oauthToken = process.env.CLAUDE_CODE_OAUTH_TOKEN;
+      const apiKey = process.env.ANTHROPIC_API_KEY;
+      if (oauthToken) execEnv.CLAUDE_CODE_OAUTH_TOKEN = oauthToken;
+      else if (apiKey) execEnv.ANTHROPIC_API_KEY = apiKey;
+    }
+
+    // Paperclip context
     execEnv.PAPERCLIP_RUN_ID = ctx.runId;
     execEnv.PAPERCLIP_AGENT_ID = ctx.agent.id;
     execEnv.PAPERCLIP_COMPANY_ID = ctx.agent.companyId;
