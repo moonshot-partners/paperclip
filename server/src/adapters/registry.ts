@@ -222,3 +222,69 @@ export function listServerAdapters(): ServerAdapterModule[] {
 export function findServerAdapter(type: string): ServerAdapterModule | null {
   return adaptersByType.get(type) ?? null;
 }
+
+// ---------------------------------------------------------------------------
+// External adapter plugin loader
+// ---------------------------------------------------------------------------
+
+/**
+ * Validates that a dynamically imported module satisfies the minimum
+ * `ServerAdapterModule` contract (type + execute + testEnvironment).
+ */
+function validateExternalAdapter(mod: Record<string, unknown>, pkg: string): void {
+  if (!mod.type || typeof mod.type !== "string") {
+    throw new Error(`External adapter "${pkg}" must export a "type" string`);
+  }
+  if (typeof mod.execute !== "function") {
+    throw new Error(`External adapter "${pkg}" must export an "execute" function`);
+  }
+  if (typeof mod.testEnvironment !== "function") {
+    throw new Error(`External adapter "${pkg}" must export a "testEnvironment" function`);
+  }
+}
+
+/**
+ * Dynamically load external adapter packages at server startup.
+ *
+ * Each package must follow the standard adapter contract:
+ *   - Default export (or `./`): `type`, `label`, `models`, `agentConfigurationDoc`
+ *   - Server export (`./server`): `execute`, `testEnvironment`, optional `sessionCodec`, `listSkills`, etc.
+ *
+ * Failures are logged but do not crash the server.
+ */
+export async function loadExternalAdapters(packageNames: string[]): Promise<void> {
+  const { knownAdapterTypes } = await import("@paperclipai/shared");
+
+  for (const pkg of packageNames) {
+    try {
+      const mod = await import(pkg);
+      const serverMod = await import(`${pkg}/server`);
+
+      // Merge root + server exports for validation
+      const merged = { ...mod, ...serverMod };
+      validateExternalAdapter(merged, pkg);
+
+      const adapter: ServerAdapterModule = {
+        type: merged.type as string,
+        execute: serverMod.execute,
+        testEnvironment: serverMod.testEnvironment,
+        sessionCodec: serverMod.sessionCodec,
+        sessionManagement: serverMod.sessionManagement,
+        models: mod.models ?? [],
+        listModels: serverMod.listModels,
+        listSkills: serverMod.listSkills,
+        syncSkills: serverMod.syncSkills,
+        supportsLocalAgentJwt: mod.supportsLocalAgentJwt ?? false,
+        agentConfigurationDoc: mod.agentConfigurationDoc ?? "",
+        getQuotaWindows: serverMod.getQuotaWindows,
+        onHireApproved: serverMod.onHireApproved,
+      };
+
+      adaptersByType.set(adapter.type, adapter);
+      knownAdapterTypes.add(adapter.type);
+      console.log(`[adapters] Loaded external adapter: ${adapter.type} (${pkg})`);
+    } catch (err) {
+      console.error(`[adapters] Failed to load external adapter "${pkg}":`, err);
+    }
+  }
+}

@@ -244,6 +244,7 @@ export function buildWorktreeConfig(input: {
         keyFilePath: paths.secretsKeyFilePath,
       },
     },
+    externalAdapters: source?.externalAdapters ?? [],
   };
 }
 

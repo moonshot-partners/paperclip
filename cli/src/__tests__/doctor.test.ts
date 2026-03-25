@@ -65,6 +65,7 @@ function createTempConfig(): string {
         keyFilePath: path.join(runtimeRoot, "secrets", "master.key"),
       },
     },
+    externalAdapters: [],
   };
 
   writeConfig(config, configPath);
