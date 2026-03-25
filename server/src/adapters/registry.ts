@@ -227,19 +227,27 @@ export function findServerAdapter(type: string): ServerAdapterModule | null {
 // External adapter plugin loader
 // ---------------------------------------------------------------------------
 
+import { logger } from "../middleware/logger.js";
+
+const log = logger.child({ service: "adapter-registry" });
+
 /**
  * Validates that a dynamically imported module satisfies the minimum
  * `ServerAdapterModule` contract (type + execute + testEnvironment).
  */
-function validateExternalAdapter(mod: Record<string, unknown>, pkg: string): void {
-  if (!mod.type || typeof mod.type !== "string") {
+function validateExternalAdapter(
+  root: Record<string, unknown>,
+  server: Record<string, unknown>,
+  pkg: string,
+): void {
+  if (!root.type || typeof root.type !== "string") {
     throw new Error(`External adapter "${pkg}" must export a "type" string`);
   }
-  if (typeof mod.execute !== "function") {
-    throw new Error(`External adapter "${pkg}" must export an "execute" function`);
+  if (typeof server.execute !== "function") {
+    throw new Error(`External adapter "${pkg}" must export an "execute" function from ./server`);
   }
-  if (typeof mod.testEnvironment !== "function") {
-    throw new Error(`External adapter "${pkg}" must export a "testEnvironment" function`);
+  if (typeof server.testEnvironment !== "function") {
+    throw new Error(`External adapter "${pkg}" must export a "testEnvironment" function from ./server`);
   }
 }
 
@@ -253,19 +261,20 @@ function validateExternalAdapter(mod: Record<string, unknown>, pkg: string): voi
  * Failures are logged but do not crash the server.
  */
 export async function loadExternalAdapters(packageNames: string[]): Promise<void> {
-  const { knownAdapterTypes } = await import("@paperclipai/shared");
-
   for (const pkg of packageNames) {
     try {
       const mod = await import(pkg);
       const serverMod = await import(`${pkg}/server`);
 
-      // Merge root + server exports for validation
-      const merged = { ...mod, ...serverMod };
-      validateExternalAdapter(merged, pkg);
+      validateExternalAdapter(mod, serverMod, pkg);
+
+      const adapterType = mod.type as string;
+      if (adaptersByType.has(adapterType)) {
+        log.warn({ type: adapterType, pkg }, "external adapter overrides existing adapter");
+      }
 
       const adapter: ServerAdapterModule = {
-        type: merged.type as string,
+        type: adapterType,
         execute: serverMod.execute,
         testEnvironment: serverMod.testEnvironment,
         sessionCodec: serverMod.sessionCodec,
@@ -281,10 +290,9 @@ export async function loadExternalAdapters(packageNames: string[]): Promise<void
       };
 
       adaptersByType.set(adapter.type, adapter);
-      knownAdapterTypes.add(adapter.type);
-      console.log(`[adapters] Loaded external adapter: ${adapter.type} (${pkg})`);
+      log.info({ type: adapter.type, pkg }, "loaded external adapter");
     } catch (err) {
-      console.error(`[adapters] Failed to load external adapter "${pkg}":`, err);
+      log.error({ pkg, err }, "failed to load external adapter");
     }
   }
 }

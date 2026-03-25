@@ -25,7 +25,7 @@ export type CreateOpenClawInvitePrompt = z.infer<
 export const acceptInviteSchema = z.object({
   requestType: z.enum(JOIN_REQUEST_TYPES),
   agentName: z.string().min(1).max(120).optional(),
-  adapterType: z.string().optional(),
+  adapterType: z.string().min(1).optional(),
   capabilities: z.string().max(4000).optional().nullable(),
   agentDefaultsPayload: z.record(z.string(), z.unknown()).optional().nullable(),
   // OpenClaw join compatibility fields accepted at top level.

@@ -30,19 +30,13 @@ export const BUILTIN_ADAPTER_TYPES = [
   "opencode_local",
   "pi_local",
   "cursor",
+  "gemini_local",
   "openclaw_gateway",
   "hermes_local",
 ] as const;
 export type BuiltinAdapterType = (typeof BUILTIN_ADAPTER_TYPES)[number];
 
-/**
- * Runtime-extensible set of all known adapter types.
- * Starts with the built-ins; external adapters are added at server startup
- * via `loadExternalAdapters()`.
- */
-export const knownAdapterTypes = new Set<string>(BUILTIN_ADAPTER_TYPES);
-
-/** @deprecated Use `BUILTIN_ADAPTER_TYPES` for the compile-time tuple or `knownAdapterTypes` for the runtime set. */
+/** Alias for backward compatibility. External types resolved at runtime via adapter registry. */
 export const AGENT_ADAPTER_TYPES = BUILTIN_ADAPTER_TYPES;
 
 /** Adapter type — any string (built-in or externally loaded). */

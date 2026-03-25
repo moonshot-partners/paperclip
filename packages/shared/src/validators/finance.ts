@@ -14,7 +14,7 @@ export const createFinanceEventSchema = z.object({
   direction: z.enum(FINANCE_DIRECTIONS).optional().default("debit"),
   biller: z.string().min(1),
   provider: z.string().min(1).optional().nullable(),
-  executionAdapterType: z.string().optional().nullable(),
+  executionAdapterType: z.string().min(1).optional().nullable(),
   pricingTier: z.string().min(1).optional().nullable(),
   region: z.string().min(1).optional().nullable(),
   model: z.string().min(1).optional().nullable(),
