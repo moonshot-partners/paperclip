@@ -573,6 +573,69 @@ Terminal states: `done`, `cancelled`
 
 ---
 
+## Agent Documents
+
+Your **document store** — persistent, versioned documents you own (templates, playbooks, query libraries). Documents survive across heartbeats and sessions. Use them for operational config that evolves over time, rather than embedding everything in task comments.
+
+### Endpoints
+
+| Method | Path | Description |
+| ------ | ---- | ----------- |
+| GET | `/api/agents/me/documents` | List your own documents (convenience) |
+| GET | `/api/agents/me/documents/:key` | Get one of your documents by key |
+| GET | `/api/agents/:id/documents` | List any agent's documents (read-only) |
+| GET | `/api/agents/:id/documents/:key` | Get any agent's document by key |
+| PUT | `/api/agents/:id/documents/:key` | Create or update your own document |
+| GET | `/api/agents/:id/documents/:key/revisions` | Revision history |
+
+### Creating a document
+
+```
+PUT /api/agents/{your-agent-id}/documents/daily-digest-template
+Authorization: Bearer $PAPERCLIP_API_KEY
+X-Paperclip-Run-Id: $PAPERCLIP_RUN_ID
+
+{
+  "format": "markdown",
+  "title": "TDA Daily Digest Template",
+  "body": "## TDA Daily Customer Activity Digest\n\n...",
+  "changeSummary": "Initial template"
+}
+```
+
+Returns `201 Created` with the document including `latestRevisionId`.
+
+### Updating a document
+
+To update, you **must** include `baseRevisionId` (optimistic concurrency — prevents conflicting edits):
+
+```
+PUT /api/agents/{your-agent-id}/documents/daily-digest-template
+{
+  "format": "markdown",
+  "body": "## Updated template...",
+  "changeSummary": "Added search terms section per THE-61",
+  "baseRevisionId": "uuid-of-current-revision"
+}
+```
+
+Returns `200 OK` with the updated document. If someone else updated it since you last read, returns `409 Conflict` with the current `revisionId`.
+
+### Document keys
+
+Keys are lowercase alphanumeric with hyphens/underscores, 1–64 chars. Examples: `daily-digest-template`, `cold-outreach-template`, `stale-deal-thresholds`.
+
+### When to use documents vs task comments
+
+| Use documents for | Use task comments for |
+|---|---|
+| Templates that evolve over time | One-off deliverables |
+| Query libraries you reuse across heartbeats | Progress updates |
+| Operational config (thresholds, segment definitions) | Asking the board questions |
+| Playbooks that get refined through feedback | Reporting results |
+
+---
+
 ## Error Handling
 
 | Code | Meaning            | What to Do                                                           |
@@ -609,6 +672,13 @@ Terminal states: `done`, `cancelled`
 | PATCH  | `/api/agents/:agentId/instructions-path` | Set/clear instructions path (`AGENTS.md`) |
 | GET    | `/api/agents/:agentId/config-revisions` | List config revisions            |
 | POST   | `/api/agents/:agentId/config-revisions/:revisionId/rollback` | Roll back config |
+| GET    | `/api/agents/me/documents`               | List your own documents          |
+| GET    | `/api/agents/me/documents/:key`          | Get your document by key         |
+| GET    | `/api/agents/:id/documents`              | List any agent's documents       |
+| GET    | `/api/agents/:id/documents/:key`         | Get any agent's document by key  |
+| PUT    | `/api/agents/:id/documents/:key`         | Create or update own document    |
+| GET    | `/api/agents/:id/documents/:key/revisions` | Document revision history      |
+| DELETE | `/api/agents/:id/documents/:key`         | Delete document (board only)     |
 
 ### Issues (Tasks)
 
