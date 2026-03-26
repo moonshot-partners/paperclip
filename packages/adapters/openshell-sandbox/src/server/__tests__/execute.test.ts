@@ -202,4 +202,52 @@ describe("openshell-sandbox execute", () => {
     expect(execCall.command).toContain("--resume");
     expect(execCall.command).toContain("prev-session");
   });
+
+  it("renders prompt from default template with agent name", async () => {
+    const streamOutput = makeStream(["output"]);
+    vi.mocked(streamExecLines).mockReturnValue(streamOutput());
+
+    const ctx = makeCtx();
+    await execute(ctx);
+
+    const execCall = mockClient.execSandbox.mock.calls[0][0];
+    const stdin = new TextDecoder().decode(execCall.stdin);
+    expect(stdin).toContain("Test Agent");
+    expect(stdin).toContain("Paperclip work");
+  });
+
+  it("renders prompt from custom template with context variables", async () => {
+    const streamOutput = makeStream(["output"]);
+    vi.mocked(streamExecLines).mockReturnValue(streamOutput());
+
+    const ctx = makeCtx({
+      config: {
+        gatewayUrl: "127.0.0.1:8080",
+        insecure: true,
+        promptTemplate: "You are {{ agent.name }}. Task: {{ context.issueTitle }}",
+      },
+      context: { issueTitle: "Scan AI news" },
+    });
+    await execute(ctx);
+
+    const execCall = mockClient.execSandbox.mock.calls[0][0];
+    const stdin = new TextDecoder().decode(execCall.stdin);
+    expect(stdin).toContain("Test Agent");
+    expect(stdin).toContain("Scan AI news");
+  });
+
+  it("uses default prompt template when none configured", async () => {
+    const streamOutput = makeStream(["output"]);
+    vi.mocked(streamExecLines).mockReturnValue(streamOutput());
+
+    const ctx = makeCtx({ config: { gatewayUrl: "127.0.0.1:8080", insecure: true } });
+    await execute(ctx);
+
+    const execCall = mockClient.execSandbox.mock.calls[0][0];
+    const stdin = new TextDecoder().decode(execCall.stdin);
+    // Default template should include agent name
+    expect(stdin).toContain("Test Agent");
+    // Should not be empty
+    expect(stdin.length).toBeGreaterThan(10);
+  });
 });
