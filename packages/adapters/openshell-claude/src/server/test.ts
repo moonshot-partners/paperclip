@@ -1,14 +1,12 @@
 import type {
+  AdapterEnvironmentTestContext,
   AdapterEnvironmentTestResult,
   AdapterEnvironmentCheck,
 } from "@paperclipai/adapter-utils";
 import { asString, asBoolean } from "@paperclipai/adapter-utils/server-utils";
 import { OpenShellClient } from "openshell-node";
 
-export async function testEnvironment(ctx: {
-  adapterType: string;
-  config: Record<string, unknown>;
-}): Promise<AdapterEnvironmentTestResult> {
+export async function testEnvironment(ctx: AdapterEnvironmentTestContext): Promise<AdapterEnvironmentTestResult> {
   const checks: AdapterEnvironmentCheck[] = [];
   const gatewayUrl = asString(ctx.config.gatewayUrl, "127.0.0.1:8080");
   const insecure = asBoolean(ctx.config.insecure, false);

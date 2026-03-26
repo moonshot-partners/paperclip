@@ -32,7 +32,7 @@ Claude Code fields:
 - dangerouslySkipPermissions (boolean, optional): skip Claude Code permission prompts (default true in headless mode)
 
 Timeout fields:
-- sandboxTimeoutSec (number, optional): sandbox creation timeout (default 60)
+- sandboxTimeoutSec (number, optional): sandbox creation timeout (default 120)
 - timeoutSec (number, optional): task execution timeout (default 3600)
 - graceSec (number, optional): grace period before kill (default 30)
 

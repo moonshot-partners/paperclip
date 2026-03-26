@@ -1,1 +1,1 @@
-export { buildOpenShellSandboxConfig } from "./build-config.js";
+export { buildOpenShellClaudeConfig } from "./build-config.js";

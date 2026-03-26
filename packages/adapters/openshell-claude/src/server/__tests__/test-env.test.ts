@@ -20,6 +20,7 @@ describe("openshell-claude testEnvironment", () => {
     mockClient.health.mockResolvedValue({ status: "SERVICE_STATUS_HEALTHY" });
 
     const result = await testEnvironment({
+      companyId: "test-company",
       adapterType: "openshell_claude",
       config: { gatewayUrl: "127.0.0.1:8080", insecure: true },
     });
@@ -34,6 +35,7 @@ describe("openshell-claude testEnvironment", () => {
     mockClient.health.mockResolvedValue({ status: "SERVICE_STATUS_DEGRADED" });
 
     const result = await testEnvironment({
+      companyId: "test-company",
       adapterType: "openshell_claude",
       config: { gatewayUrl: "127.0.0.1:8080", insecure: true },
     });
@@ -46,6 +48,7 @@ describe("openshell-claude testEnvironment", () => {
     mockClient.health.mockRejectedValue(new Error("Connection refused"));
 
     const result = await testEnvironment({
+      companyId: "test-company",
       adapterType: "openshell_claude",
       config: { gatewayUrl: "127.0.0.1:9999", insecure: true },
     });

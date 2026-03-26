@@ -2,7 +2,7 @@ import type {
   AdapterExecutionContext,
   AdapterExecutionResult,
 } from "@paperclipai/adapter-utils";
-import { asString, asNumber, asBoolean, parseObject, renderTemplate } from "@paperclipai/adapter-utils/server-utils";
+import { asString, asNumber, asBoolean, asStringArray, parseObject, renderTemplate } from "@paperclipai/adapter-utils/server-utils";
 import { parseClaudeStreamJson } from "@paperclipai/adapter-claude-local/server";
 import { OpenShellClient, streamExecLines } from "openshell-node";
 import { getOrCreateSandbox, deleteSandboxSafe } from "./sandbox.js";
@@ -20,7 +20,7 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
   const effort = asString(config.effort, "");
   const skipPerms = asBoolean(config.dangerouslySkipPermissions, true);
   const envOverrides = parseObject(config.env);
-  const providers = Array.isArray(config.providers) ? config.providers as string[] : [];
+  const providers = asStringArray(config.providers);
 
   const client = new OpenShellClient({ gateway: gatewayUrl, cluster: gatewayCluster, insecure });
 
