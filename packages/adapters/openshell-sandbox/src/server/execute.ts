@@ -14,7 +14,7 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
   const insecure = asBoolean(config.insecure, false);
   const persistSandbox = asBoolean(config.persistSandbox, false);
   const timeoutSec = asNumber(config.timeoutSec, 3600);
-  const sandboxTimeoutSec = asNumber(config.sandboxTimeoutSec, 60);
+  const sandboxTimeoutSec = asNumber(config.sandboxTimeoutSec, 120);
   const model = asString(config.model, "");
   const maxTurns = asNumber(config.maxTurnsPerRun, 0);
   const effort = asString(config.effort, "");
@@ -25,7 +25,10 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
   const client = new OpenShellClient({ gateway: gatewayUrl, cluster: gatewayCluster, insecure });
 
   const sessionKey = ctx.runtime.taskKey ?? ctx.runId;
-  const sandboxName = `paperclip-${ctx.agent.id}-${sessionKey}`;
+  // K8s pod names max 63 chars — use short hashes of agent ID and session key
+  const agentHash = ctx.agent.id.replace(/-/g, "").slice(0, 8);
+  const sessionHash = sessionKey.replace(/-/g, "").slice(0, 12);
+  const sandboxName = `pclip-${agentHash}-${sessionHash}`;
 
   let resolvedSandboxName = sandboxName;
   let exitCode: number | null = null;
