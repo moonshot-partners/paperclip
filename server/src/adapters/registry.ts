@@ -78,11 +78,11 @@ import {
 import {
   execute as openshellExecute,
   testEnvironment as openshellTestEnvironment,
-} from "@paperclipai/adapter-openshell-sandbox/server";
+} from "@paperclipai/adapter-openshell-claude/server";
 import {
   agentConfigurationDoc as openshellAgentConfigurationDoc,
   models as openshellModels,
-} from "@paperclipai/adapter-openshell-sandbox";
+} from "@paperclipai/adapter-openshell-claude";
 import { processAdapter } from "./process/index.js";
 import { httpAdapter } from "./http/index.js";
 
@@ -189,8 +189,8 @@ const hermesLocalAdapter: ServerAdapterModule = {
   agentConfigurationDoc: hermesAgentConfigurationDoc,
 };
 
-const openshellSandboxAdapter: ServerAdapterModule = {
-  type: "openshell_sandbox",
+const openshellClaudeAdapter: ServerAdapterModule = {
+  type: "openshell_claude",
   execute: openshellExecute,
   testEnvironment: openshellTestEnvironment,
   models: openshellModels,
@@ -208,7 +208,7 @@ const adaptersByType = new Map<string, ServerAdapterModule>(
     geminiLocalAdapter,
     openclawGatewayAdapter,
     hermesLocalAdapter,
-    openshellSandboxAdapter,
+    openshellClaudeAdapter,
     processAdapter,
     httpAdapter,
   ].map((a) => [a.type, a]),

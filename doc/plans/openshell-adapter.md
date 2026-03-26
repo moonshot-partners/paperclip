@@ -34,7 +34,7 @@ This requires two changes to Paperclip:
                            │
               ┌────────────┼────────────────┐
               ▼            ▼                ▼
-        claude_local   openclaw_gw    openshell_sandbox
+        claude_local   openclaw_gw    openshell_claude
         (direct CLI)   (WebSocket)    (gRPC via openshell-node)
               │            │                │
               ▼            ▼                ▼
@@ -144,7 +144,7 @@ Paperclip                    Adapter                    OpenShell Gateway
 ```json
 {
   "externalAdapters": [
-    "@paperclipai/adapter-openshell-sandbox"
+    "@paperclipai/adapter-openshell-claude"
   ]
 }
 ```
@@ -182,7 +182,7 @@ For existing companies (e.g. TPC):
 1. Install OpenShell on the server
 2. Create company policy (replace `openclaw.json` tool allowlists)
 3. Set up MCP servers to replace OpenClaw plugins
-4. Change agent `adapterType` from `openclaw_gateway` to `openshell_sandbox`
+4. Change agent `adapterType` from `openclaw_gateway` to `openshell_claude`
 5. Update `adapterConfig` with OpenShell gateway URL and policy
 6. Test with one agent first, then migrate all
 

@@ -1,11 +1,11 @@
 {
-  "name": "@paperclipai/adapter-openshell-sandbox",
+  "name": "@paperclipai/adapter-openshell-claude",
   "version": "0.3.1",
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "https://github.com/moonshot-partners/paperclip",
-    "directory": "packages/adapters/openshell-sandbox"
+    "directory": "packages/adapters/openshell-claude"
   },
   "type": "module",
   "exports": {

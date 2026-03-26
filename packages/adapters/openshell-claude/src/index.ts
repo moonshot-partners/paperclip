@@ -1,5 +1,5 @@
-export const type = "openshell_sandbox";
-export const label = "OpenShell Sandbox";
+export const type = "openshell_claude";
+export const label = "OpenShell Claude";
 
 export const models: { id: string; label: string }[] = [
   { id: "claude-opus-4-6", label: "Claude Opus 4.6" },
@@ -7,9 +7,9 @@ export const models: { id: string; label: string }[] = [
   { id: "claude-haiku-4-5-20251001", label: "Claude Haiku 4.5" },
 ];
 
-export const agentConfigurationDoc = `# openshell_sandbox agent configuration
+export const agentConfigurationDoc = `# openshell_claude agent configuration
 
-Adapter: openshell_sandbox
+Adapter: openshell_claude
 
 Runs Claude Code inside an NVIDIA OpenShell sandbox with declarative security policies.
 Agents get full Claude Code capabilities (bash, MCP, files) while network/filesystem/process

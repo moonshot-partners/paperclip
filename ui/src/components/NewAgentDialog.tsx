@@ -30,7 +30,7 @@ type AdvancedAdapterType =
   | "pi_local"
   | "cursor"
   | "openclaw_gateway"
-  | "openshell_sandbox";
+  | "openshell_claude";
 
 const ADVANCED_ADAPTER_OPTIONS: Array<{
   value: AdvancedAdapterType;
@@ -84,8 +84,8 @@ const ADVANCED_ADAPTER_OPTIONS: Array<{
     desc: "Invoke OpenClaw via gateway protocol",
   },
   {
-    value: "openshell_sandbox",
-    label: "OpenShell Sandbox",
+    value: "openshell_claude",
+    label: "OpenShell Claude",
     icon: Bot,
     desc: "Claude Code in NVIDIA OpenShell sandbox",
   },

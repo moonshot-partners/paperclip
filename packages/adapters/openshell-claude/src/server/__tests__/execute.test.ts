@@ -34,7 +34,7 @@ import { streamExecLines } from "openshell-node";
 function makeCtx(overrides?: Partial<AdapterExecutionContext>): AdapterExecutionContext {
   return {
     runId: "run-001",
-    agent: { id: "agent-abc-123", companyId: "company-xyz", name: "Test Agent", adapterType: "openshell_sandbox", adapterConfig: {} },
+    agent: { id: "agent-abc-123", companyId: "company-xyz", name: "Test Agent", adapterType: "openshell_claude", adapterConfig: {} },
     runtime: { sessionId: null, sessionParams: null, sessionDisplayId: null, taskKey: "task-001" },
     config: {
       gatewayUrl: "127.0.0.1:8080",
@@ -55,7 +55,7 @@ function makeStream(stdoutLines: string[], exitCode = 0) {
   };
 }
 
-describe("openshell-sandbox execute", () => {
+describe("openshell-claude execute", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockClient.createSandbox.mockResolvedValue({ id: "sb-123", name: "paperclip-agent-abc-123-task-001", phase: 2 });

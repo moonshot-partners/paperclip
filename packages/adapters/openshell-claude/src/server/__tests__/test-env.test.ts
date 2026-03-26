@@ -11,7 +11,7 @@ vi.mock("openshell-node", () => ({
 
 import { testEnvironment } from "../test.js";
 
-describe("openshell-sandbox testEnvironment", () => {
+describe("openshell-claude testEnvironment", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -20,7 +20,7 @@ describe("openshell-sandbox testEnvironment", () => {
     mockClient.health.mockResolvedValue({ status: "SERVICE_STATUS_HEALTHY" });
 
     const result = await testEnvironment({
-      adapterType: "openshell_sandbox",
+      adapterType: "openshell_claude",
       config: { gatewayUrl: "127.0.0.1:8080", insecure: true },
     });
 
@@ -34,7 +34,7 @@ describe("openshell-sandbox testEnvironment", () => {
     mockClient.health.mockResolvedValue({ status: "SERVICE_STATUS_DEGRADED" });
 
     const result = await testEnvironment({
-      adapterType: "openshell_sandbox",
+      adapterType: "openshell_claude",
       config: { gatewayUrl: "127.0.0.1:8080", insecure: true },
     });
 
@@ -46,7 +46,7 @@ describe("openshell-sandbox testEnvironment", () => {
     mockClient.health.mockRejectedValue(new Error("Connection refused"));
 
     const result = await testEnvironment({
-      adapterType: "openshell_sandbox",
+      adapterType: "openshell_claude",
       config: { gatewayUrl: "127.0.0.1:9999", insecure: true },
     });
 

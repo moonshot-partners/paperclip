@@ -123,7 +123,7 @@ const adapterLabels: Record<string, string> = {
   opencode_local: "OpenCode",
   cursor: "Cursor",
   openclaw_gateway: "OpenClaw Gateway",
-  openshell_sandbox: "OpenShell",
+  openshell_claude: "OpenShell",
   process: "Process",
   http: "HTTP",
 };
