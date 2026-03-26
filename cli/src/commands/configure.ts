@@ -65,6 +65,7 @@ function defaultConfig(): PaperclipConfig {
     },
     storage: defaultStorageConfig(),
     secrets: defaultSecretsConfig(),
+    externalAdapters: [],
   };
 }
 
