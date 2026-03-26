@@ -33,6 +33,7 @@ export const BUILTIN_ADAPTER_TYPES = [
   "gemini_local",
   "openclaw_gateway",
   "hermes_local",
+  "openshell_sandbox",
 ] as const;
 export type BuiltinAdapterType = (typeof BUILTIN_ADAPTER_TYPES)[number];
 
