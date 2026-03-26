@@ -75,6 +75,14 @@ import {
   agentConfigurationDoc as hermesAgentConfigurationDoc,
   models as hermesModels,
 } from "hermes-paperclip-adapter";
+import {
+  execute as openshellExecute,
+  testEnvironment as openshellTestEnvironment,
+} from "@paperclipai/adapter-openshell-sandbox/server";
+import {
+  agentConfigurationDoc as openshellAgentConfigurationDoc,
+  models as openshellModels,
+} from "@paperclipai/adapter-openshell-sandbox";
 import { processAdapter } from "./process/index.js";
 import { httpAdapter } from "./http/index.js";
 
@@ -181,6 +189,15 @@ const hermesLocalAdapter: ServerAdapterModule = {
   agentConfigurationDoc: hermesAgentConfigurationDoc,
 };
 
+const openshellSandboxAdapter: ServerAdapterModule = {
+  type: "openshell_sandbox",
+  execute: openshellExecute,
+  testEnvironment: openshellTestEnvironment,
+  models: openshellModels,
+  supportsLocalAgentJwt: false,
+  agentConfigurationDoc: openshellAgentConfigurationDoc,
+};
+
 const adaptersByType = new Map<string, ServerAdapterModule>(
   [
     claudeLocalAdapter,
@@ -191,6 +208,7 @@ const adaptersByType = new Map<string, ServerAdapterModule>(
     geminiLocalAdapter,
     openclawGatewayAdapter,
     hermesLocalAdapter,
+    openshellSandboxAdapter,
     processAdapter,
     httpAdapter,
   ].map((a) => [a.type, a]),
