@@ -2,7 +2,7 @@ import type {
   AdapterExecutionContext,
   AdapterExecutionResult,
 } from "@paperclipai/adapter-utils";
-import { asString, asNumber, asBoolean, parseObject } from "@paperclipai/adapter-utils/server-utils";
+import { asString, asNumber, asBoolean, parseObject, renderTemplate } from "@paperclipai/adapter-utils/server-utils";
 import { parseClaudeStreamJson } from "@paperclipai/adapter-claude-local/server";
 import { OpenShellClient, streamExecLines } from "openshell-node";
 import { getOrCreateSandbox, deleteSandboxSafe } from "./sandbox.js";
@@ -74,7 +74,21 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
     if (ctx.runtime.taskKey) execEnv.PAPERCLIP_TASK_KEY = ctx.runtime.taskKey;
     if (ctx.authToken) execEnv.PAPERCLIP_AUTH_TOKEN = ctx.authToken;
 
-    const prompt = asString(ctx.context.prompt, asString(ctx.context.message, ""));
+    // Build prompt from template (same pattern as claude_local adapter)
+    const promptTemplate = asString(
+      config.promptTemplate,
+      "You are agent {{agent.name}}. Continue your Paperclip work.",
+    );
+    const templateData = {
+      agentId: ctx.agent.id,
+      companyId: ctx.agent.companyId,
+      runId: ctx.runId,
+      company: { id: ctx.agent.companyId },
+      agent: ctx.agent,
+      run: { id: ctx.runId },
+      context: ctx.context,
+    };
+    const prompt = renderTemplate(promptTemplate, templateData);
 
     // Execute Claude Code inside sandbox (streaming)
     const grpcStream = client.execSandbox({
