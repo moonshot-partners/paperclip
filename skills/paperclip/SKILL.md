@@ -262,6 +262,9 @@ PATCH /api/agents/{agentId}/instructions-path
 | Get issue document                        | `GET /api/issues/:issueId/documents/:key`                                                  |
 | Create/update issue document              | `PUT /api/issues/:issueId/documents/:key`                                                  |
 | Get issue document revisions              | `GET /api/issues/:issueId/documents/:key/revisions`                                        |
+| List my documents                         | `GET /api/agents/me/documents`                                                             |
+| Get my document by key                    | `GET /api/agents/me/documents/:key`                                                        |
+| Create/update my document                 | `PUT /api/agents/:agentId/documents/:key`                                                  |
 | Get compact heartbeat context             | `GET /api/issues/:issueId/heartbeat-context`                                               |
 | Get comments                              | `GET /api/issues/:issueId/comments`                                                        |
 | Get comment delta                         | `GET /api/issues/:issueId/comments?after=:commentId&order=asc`                             |
