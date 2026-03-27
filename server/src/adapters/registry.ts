@@ -75,6 +75,14 @@ import {
   agentConfigurationDoc as hermesAgentConfigurationDoc,
   models as hermesModels,
 } from "hermes-paperclip-adapter";
+import {
+  execute as openshellExecute,
+  testEnvironment as openshellTestEnvironment,
+} from "@paperclipai/adapter-openshell-claude/server";
+import {
+  agentConfigurationDoc as openshellAgentConfigurationDoc,
+  models as openshellModels,
+} from "@paperclipai/adapter-openshell-claude";
 import { processAdapter } from "./process/index.js";
 import { httpAdapter } from "./http/index.js";
 
@@ -181,6 +189,15 @@ const hermesLocalAdapter: ServerAdapterModule = {
   agentConfigurationDoc: hermesAgentConfigurationDoc,
 };
 
+const openshellClaudeAdapter: ServerAdapterModule = {
+  type: "openshell_claude",
+  execute: openshellExecute,
+  testEnvironment: openshellTestEnvironment,
+  models: openshellModels,
+  supportsLocalAgentJwt: false,
+  agentConfigurationDoc: openshellAgentConfigurationDoc,
+};
+
 const adaptersByType = new Map<string, ServerAdapterModule>(
   [
     claudeLocalAdapter,
@@ -191,6 +208,7 @@ const adaptersByType = new Map<string, ServerAdapterModule>(
     geminiLocalAdapter,
     openclawGatewayAdapter,
     hermesLocalAdapter,
+    openshellClaudeAdapter,
     processAdapter,
     httpAdapter,
   ].map((a) => [a.type, a]),
@@ -221,4 +239,78 @@ export function listServerAdapters(): ServerAdapterModule[] {
 
 export function findServerAdapter(type: string): ServerAdapterModule | null {
   return adaptersByType.get(type) ?? null;
+}
+
+// ---------------------------------------------------------------------------
+// External adapter plugin loader
+// ---------------------------------------------------------------------------
+
+import { logger } from "../middleware/logger.js";
+
+const log = logger.child({ service: "adapter-registry" });
+
+/**
+ * Validates that a dynamically imported module satisfies the minimum
+ * `ServerAdapterModule` contract (type + execute + testEnvironment).
+ */
+function validateExternalAdapter(
+  root: Record<string, unknown>,
+  server: Record<string, unknown>,
+  pkg: string,
+): void {
+  if (!root.type || typeof root.type !== "string") {
+    throw new Error(`External adapter "${pkg}" must export a "type" string`);
+  }
+  if (typeof server.execute !== "function") {
+    throw new Error(`External adapter "${pkg}" must export an "execute" function from ./server`);
+  }
+  if (typeof server.testEnvironment !== "function") {
+    throw new Error(`External adapter "${pkg}" must export a "testEnvironment" function from ./server`);
+  }
+}
+
+/**
+ * Dynamically load external adapter packages at server startup.
+ *
+ * Each package must follow the standard adapter contract:
+ *   - Default export (or `./`): `type`, `label`, `models`, `agentConfigurationDoc`
+ *   - Server export (`./server`): `execute`, `testEnvironment`, optional `sessionCodec`, `listSkills`, etc.
+ *
+ * Failures are logged but do not crash the server.
+ */
+export async function loadExternalAdapters(packageNames: string[]): Promise<void> {
+  for (const pkg of packageNames) {
+    try {
+      const mod = await import(pkg);
+      const serverMod = await import(`${pkg}/server`);
+
+      validateExternalAdapter(mod, serverMod, pkg);
+
+      const adapterType = mod.type as string;
+      if (adaptersByType.has(adapterType)) {
+        log.warn({ type: adapterType, pkg }, "external adapter overrides existing adapter");
+      }
+
+      const adapter: ServerAdapterModule = {
+        type: adapterType,
+        execute: serverMod.execute,
+        testEnvironment: serverMod.testEnvironment,
+        sessionCodec: serverMod.sessionCodec,
+        sessionManagement: serverMod.sessionManagement,
+        models: mod.models ?? [],
+        listModels: serverMod.listModels,
+        listSkills: serverMod.listSkills,
+        syncSkills: serverMod.syncSkills,
+        supportsLocalAgentJwt: mod.supportsLocalAgentJwt ?? false,
+        agentConfigurationDoc: mod.agentConfigurationDoc ?? "",
+        getQuotaWindows: serverMod.getQuotaWindows,
+        onHireApproved: serverMod.onHireApproved,
+      };
+
+      adaptersByType.set(adapter.type, adapter);
+      log.info({ type: adapter.type, pkg }, "loaded external adapter");
+    } catch (err) {
+      log.error({ pkg, err }, "failed to load external adapter");
+    }
+  }
 }

@@ -21,7 +21,8 @@ export const AGENT_STATUSES = [
 ] as const;
 export type AgentStatus = (typeof AGENT_STATUSES)[number];
 
-export const AGENT_ADAPTER_TYPES = [
+/** Built-in adapter types known at compile time. */
+export const BUILTIN_ADAPTER_TYPES = [
   "process",
   "http",
   "claude_local",
@@ -29,10 +30,18 @@ export const AGENT_ADAPTER_TYPES = [
   "opencode_local",
   "pi_local",
   "cursor",
+  "gemini_local",
   "openclaw_gateway",
   "hermes_local",
+  "openshell_claude",
 ] as const;
-export type AgentAdapterType = (typeof AGENT_ADAPTER_TYPES)[number];
+export type BuiltinAdapterType = (typeof BUILTIN_ADAPTER_TYPES)[number];
+
+/** Alias for backward compatibility. External types resolved at runtime via adapter registry. */
+export const AGENT_ADAPTER_TYPES = BUILTIN_ADAPTER_TYPES;
+
+/** Adapter type — any string (built-in or externally loaded). */
+export type AgentAdapterType = string;
 
 export const AGENT_ROLES = [
   "ceo",

@@ -125,6 +125,7 @@ export const paperclipConfigSchema = z
         keyFilePath: "~/.paperclip/instances/default/secrets/master.key",
       },
     }),
+    externalAdapters: z.array(z.string().min(1)).optional().default([]),
   })
   .superRefine((value, ctx) => {
     if (value.server.deploymentMode === "local_trusted") {
